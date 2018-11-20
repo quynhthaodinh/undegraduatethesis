@@ -1,0 +1,468 @@
+---
+title: "IMDb Data"
+author: "Thao Dinh"
+date: "11/6/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(naniar)
+library(lubridate)
+```
+
+##IMDB Data
+###Import Data
+```{r import, include=FALSE}
+library(readr)
+IMDB_basic <- read_delim("https://datasets.imdbws.com/title.basics.tsv.gz", 
+    "\t", escape_double = FALSE, trim_ws = TRUE)
+
+#Obtain only observations that are movies from 2014-2017
+IMDB_basic_subset <- IMDB_basic %>%
+  filter(titleType == "movie", startYear %in% (2014:2017)) %>%
+  #Select only the columns I want
+  select(1:3, 6, 9)
+```
+
+###Data Cleaning
+####Clean up the genre column of IMDB data
+```{r cleaning_IMDB, include=FALSE}
+#To keep only the first genre listed in the genre column
+IMDB_basic_subset$genres <- sapply(strsplit(IMDB_basic_subset$genres, ","), "[", 1)
+```
+
+###Box Office Mojo + Kraggle Data
+####Clean Box Office Mojo Data
+```{r cleaning_BOMojo, include=FALSE}
+#Import Webscraped Box Office Mojo CSV
+movies <- read.csv('Box Office Mojo CSV.csv',
+                   stringsAsFactors = FALSE,
+                   na.strings = c("","n/a", "NA"))
+
+# this script cleans up box office revenue data in two major ways:
+
+# 1) pulls a ton of empty rows and columns from the csv (~100k blank rows and 3 blank columns) to to make a less large and empty csv
+
+better_data <- movies %>%
+  filter(!is.na(Identifier)) %>%
+  rename(Domestic.Percent = Domestic..,
+         Overseas.Percent = Overseas..) %>%
+  select(1:10)
+
+write.csv(better_dollars, file = "cleaned_mojo.csv", quote = TRUE, row.names = FALSE, na = "")
+
+# 2) fixes units problem so that all dollar amounts are in the same unit (currently, dollars)
+better_dollars <- better_data %>%
+  # fix the units for worldwide
+  separate(Worldwide.Dollar, c('sign', 'worldwide_box', 'unit'), c(1,-1)) %>% # break off the $ and k (or space)
+  mutate(worldwide_box = as.numeric(stringr::str_remove(worldwide_box, ",")), # pull any commas from the dollar amount
+         worldwide_box = ifelse(unit == "k", #multiply by 1,000 if it's k; by 1,000,000 if not
+                                worldwide_box * 1000,
+                                worldwide_box * 1000000)) %>%
+  select(-sign, -unit) %>%
+  
+  # fix the units for domestic
+  separate(Domestic.Dollar, c('sign', 'domestic_box', 'unit'), c(1,-1)) %>%
+  mutate(domestic_box = as.numeric(stringr::str_remove(domestic_box, ",")),
+         domestic_box = ifelse(unit == "k",
+                                domestic_box * 1000,
+                                domestic_box * 1000000)) %>%
+  select(-sign, -unit) %>%
+  
+  # fix the units for overseas
+  separate(Overseas.Dollar, c('sign', 'overseas_box', 'unit'), c(1,-1)) %>%
+  mutate(overseas_box = as.numeric(stringr::str_remove(overseas_box, ",")),
+         overseas_box = ifelse(unit == "k",
+                               overseas_box * 1000,
+                               overseas_box * 1000000)) %>%
+  select(-sign, -unit)
+
+# set columns per "How I Want Data to Look"
+movies_clean <- select(better_dollars, Year, Title, Studio,
+                       worldwide_box, domestic_box, overseas_box)
+
+write.csv(movies_clean, file = "boxoffice.csv", quote = TRUE, row.names = FALSE, na = "0")
+```
+
+####Create International Release dummy variable based on films with N/A at either domestic or international box office
+```{r international, include=FALSE}
+BOMojo_data_clean <- movies_clean %>%
+  mutate(International_Release = ifelse(is.na(overseas_box) | is.na(domestic_box), 1, 0))
+```
+
+####Create Award var (1 = oscar-nominated movies from the 2014-2017 release season, 0 for otherwise)
+```{r awards, include=FALSE}
+#List the oscar-nominated films for the 2014-2017 release season
+oscarnom_movies_2014_2017 <- c("Abacus: Small Enough to Jail",
+"All the Money in the World",
+"Allied",
+"American Sniper",
+"Amy",
+"Anomalisa",
+"Arrival",
+"Ave Maria",
+"Aya",
+"Baby Driver",
+"Bear Story",
+'Beauty and the Beast',
+"Begin Again",
+"Beyond the Lights",
+"Big Hero 6",
+"The Big Short",
+"The Big Sick",
+"The Bigger Picture",
+"Birdman",
+"Blade Runner 2049",
+"Blind Vaysha",
+"Body Team 12",
+"Boogaloo and Graham",
+"Borrowed Time",
+"The Boss Baby",
+"The Boxtrolls",
+"Boy and the World",
+"Boyhood",
+"The Breadwinner",
+"Bridge of Spies",
+"Brooklyn",
+"Butter Lamp (La Lampe Au Beurre De Yak)",
+"Call Me by Your Name",
+"Captain America: The Winter Soldier",
+"Captain Fantastic",
+"Carol",
+"Cartel Land",
+"Chau: beyond the Lines",
+"Cinderella",
+"CitizenFour",
+"Claude Lanzmann: Spectres of the Shoah",
+"Coco",
+"Creed",
+"Crisis Hotline: Veterans Press 1",
+"The Dam Keeper",
+"The Danish Girl",
+"Darkest Hour",
+"Dawn of the Planet of the Apes",
+"Day One",
+"Dear Basketball",
+"Deepwater Horizon",
+"DeKalb Elementary",
+"The Disaster Artist",
+"Doctor Strange",
+"Dunkirk",
+"Edith+Eddie",
+"The Eleven O’Clock",
+"Elle",
+"Embrace of the Serpent",
+"Ennemis Intrieurs",
+"Everything Will Be Okay (Alles Wird Gut)",
+"Ex Machina",
+"Extremis",
+"Faces Places",
+"Fantastic Beasts and Where to Find Them",
+"A Fantastic Woman",
+"Feast",
+"Fences",
+"Ferdinand",
+"Fifty Shades of Grey",
+"Finding Vivian Maier",
+"Fire at Sea",
+"Florence Foster Jenkins",
+"The Florida Project",
+"45 Years",
+"4.1 Miles",
+"Foxcatcher",
+"Garden Party",
+"Get Out",
+"A Girl in the River: The Price of Forgiveness",
+"Glen Campbell...I’ll Be Me",
+"Gone Girl",
+"The Grand Budapest Hotel",
+"The Greatest Showman",
+"Guardians of the Galaxy",
+"Guardians of the Galaxy Vol. 2",
+"Hacksaw Ridge",
+"Hail, Caesar!",
+"The Hateful Eight",
+"Heaven Is a Traffic Jam on the 405",
+"Hell or High Water",
+"Heroin(e)",
+"Hidden Figures",
+"The Hobbit: The Battle of the Five Armies",
+"How to Train Your Dragon 2",
+"The Hunting Ground",
+"I Am Not Your Negro",
+"I, Tonya",
+"Icarus",
+"Ida",
+"The Imitation Game",
+"Inherent Vice",
+"Inside Out",
+"The Insult",
+"Interstellar",
+"Into the Woods",
+"Jackie",
+"Jim: The James Foley Story",
+"Joanna",
+"Joe’s Violin",
+"Joy",
+"The Judge",
+"The Jungle Book",
+"Knife Skills",
+"Kong: Skull Island",
+"Kubo and the Two Strings",
+"La Femme et le TGV",
+"La La Land",
+"Lady Bird",
+"Land of Mine",
+"Last Day of Freedom",
+"Last Days in Vietnam",
+"Last Men in Aleppo",
+"The Lego Movie",
+"Leviathan",
+"Life, Animated",
+"Lion",
+"The Lobster",
+"Logan",
+"The Look of Silence",
+"Lou",
+"Loveless",
+"Loving",
+"Loving Vincent",
+"Mad Max: Fury Road",
+"Maleficent",
+"A Man Called Ove",
+"Manchester by the Sea",
+"Marshall",
+"The Martian",
+"Me and My Moulton",
+"Mr. Turner",
+"Moana",
+"Molly’s Game",
+"Moonlight",
+"Mudbound",
+"Mustang",
+"My Life as a Zucchini",
+"My Nephew Emmett",
+"Negative Space",
+"Nightcrawler",
+"Nocturnal Animals",
+"O.J.: Made in America",
+"On Body and Soul",
+"The 100-Year-Old Man Who Climbed out the Window and Disappeared",
+"Our Curse",
+"Parvaneh",
+"Passengers",
+"Pear Cider and Cigarettes",
+"Pearl",
+"Phantom Thread",
+"The Phone Call",
+"Piper",
+"The Post",
+"Prologue",
+"Racing Extinction",
+"The Reaper (La Parka)",
+"The Red Turtle",
+"The Revenant",
+"Revolting Rhymes",
+"Rogue One: A Star Wars Story",
+"Roman J. Israel, Esq.",
+"Room",
+"The Salesman",
+"The Salt of the Earth",
+"Sanjay’s Super Team",
+"Selma",
+"The Shape of Water",
+"Shaun the Sheep Movie",
+"Shok",
+"Sicario",
+"Silence",
+"The Silent Child",
+"Silent Nights",
+"Sing",
+"A Single Life",
+"Son of Saul",
+"Song of the Sea",
+"Spectre",
+"Spotlight",
+"The Square",
+"Star Trek Beyond",
+"Star Wars: The Force Awakens",
+"Star Wars: The Last Jedi",
+"Steve Jobs",
+"Still Alice",
+"Straight Outta Compton",
+"Strong Island",
+"Stutterer",
+"Suicide Squad",
+"Sully",
+"The Tale of the Princess Kaguya",
+"Tangerines",
+"Tanna",
+"Theeb",
+"The Theory of Everything",
+"13 Hours: The Secret Soldiers of Benghazi",
+"13th",
+"Three Billboards Outside Ebbing, Missouri",
+"Timbuktu",
+"Timecode",
+"Toni Erdmann",
+"Traffic Stop",
+"Trolls",
+"Trumbo",
+"20th Century Women",
+"Two Days, One Night",
+"Unbroken",
+"Victoria and Abdul",
+"Virunga",
+"A War",
+"War for the Planet of the Apes",
+"Watani: My Homeland",
+"Watu Wote/All of Us",
+"We Can’t Live without Cosmos",
+"What Happened, Miss Simone?",
+"When Marnie Was There",
+"Whiplash",
+"White Earth",
+"The White Helmets",
+"Wild",
+"Wild Tales",
+"Winter on Fire: Ukraine’s Fight for Freedom",
+"Wonder",
+"World of Tomorrow",
+"X-Men: Days of Future Past",
+"Youth",
+"Zootopia")
+
+#Convert movies titles to all lowercase to make the matching process easier
+oscarnom_movies_2014_2017 <- tolower(oscarnom_movies_2014_2017)
+BOMojo_data_clean$Title <- tolower(BOMojo_data_clean$Title)
+
+#Create Award variable using mutate and ifelse function
+BOMojo_data_clean <- BOMojo_data_clean %>%
+  mutate(Award = ifelse(Title %in% oscarnom_movies_2014_2017, 1, 0))
+```
+
+####Recode Studio variable into a dummy var 
+```{r studio, include=FALSE}
+#list the distribution arms of major Hollywood studios for their inhouse-produced films
+studio_distributors <- c("BV", "Uni.", "Sony", "WB", "WB (NL)", "Fox", "Par.")
+
+#Recode Studio column using ifelse
+BOMojo_data_clean$Studio <- ifelse(BOMojo_data_clean$Studio %in% studio_distributors, 1, 0)
+```
+
+####Create Production Budget variable
+```{r budget, include=FALSE}
+#Import The Numbers dataset that contains info on production budget and BOR (D and WW)
+TheNumber_data <- read_csv("The Number Dataset.csv", 
+    col_types = cols(`Domestic_Gross` = col_number(), 
+        `P_Budget` = col_number(), 
+        `Release_Date` = col_date(format = "%m/%d/%Y"), 
+        `Worldwide_Gross` = col_number()))
+
+#Subset out only the data that I want (2014-2017)
+TheNumber_budget_2014_2017 <- TheNumber_data %>%
+  #Remove the observations for which there is no box office data whatsoever
+  filter(Domestic_Gross >= 300000) %>% 
+  #select only the columns I want
+  select(1:3, 5) %>%
+  #Extract year from release date
+  mutate(Year = year(Release_Date)) %>%
+  #Filter in only observations released from 2014-2017
+  filter(Year %in% (2014:2017))
+
+#Convert movies titles to all lowercase to make the matching process easier
+TheNumber_budget_2014_2017$Title <- tolower(TheNumber_budget_2014_2017$Title)
+
+#Join with the BOMojo Data
+BOMojo_expanded <- merge(BOMojo_data_clean, TheNumber_budget_2014_2017, by = c("Title", "Year"), all = TRUE)
+
+#Import Kraggle movie dataset (only contains data up to the first half of 2017)
+movies_metadata <- read_csv("movies_metadata.csv")
+
+movies_metadata$release_date <- as.Date(movies_metadata$release_date)
+
+kraggle_subset <- movies_metadata %>%
+  #select only the columns of interest
+  select(title, release_date, budget, popularity) %>%
+  #filter in only films with release date from 2014-01-01 to 2017-12-31
+  filter(release_date >= "2014-01-01", release_date <= "2017-12-31") %>%
+  #select only observations with budget larger than 1
+  filter(budget > 1) %>%
+  ##Extract year from release date
+  mutate(Year = year(release_date))
+
+
+#Convert movies titles to all lowercase to make the matching process easier
+kraggle_subset$title <- tolower(kraggle_subset$title)
+
+#Match the observations from Kraggle onto those in the BOMojo dataframe
+BOMojo_TheNumber_Kraggle <- merge(BOMojo_expanded, kraggle_subset, by.x = c("Title", "Year"), by.y = c("title", "Year"), all = TRUE)
+
+#Select only Title, Year, P_Budget and budget from BOMojo_TheNumber_Kraggle
+BOMojo_TheNumber_Kraggle_budget <- BOMojo_TheNumber_Kraggle %>%
+  select(Title, Year, P_Budget, budget) %>%
+  dplyr::rename("TheNumbers_Budget" = P_Budget, "Kraggle_Budget" = budget)
+
+write.csv(BOMojo_TheNumber_Kraggle_budget, file = "BudgetData-TheNumbers-Kraggle.csv", quote = TRUE, row.names = FALSE)
+```
+#####Problem:
+1) Some of the names are slightly different, even though the are referring to the same movies, so they won't join
+2) There were some movies hat for some reasons was in the BOMojo datasets, even though they has a higher worldwide gross (mostly domestic-driven) than 300k 
+3) The Numbers Production Budget data doesnt include that for foreign-produced films, so movies such as _The Mermaid_ and _Wolf Warriors 2_ which has a large WW box office gross driven mostly by the international box office. 
+
+####Joining IMDB and Box Office Mojo Data
+```{r join, include = FALSE}
+#Convert movies titles to all lowercase to make the matching process easier
+IMDB_basic_subset$primaryTitle <- tolower(IMDB_basic_subset$primaryTitle)
+
+#Rename columns to match the naming convention of BOMojo dataset (for ease of merge)
+IMDB_basic_subset <- IMDB_basic_subset %>% 
+  rename("IMDB_ID" = tconst, "Title" = primaryTitle, "Year" = startYear) %>%
+  select(-2)
+
+#Match the observations from IMDB onto those in the BOMojo dataframe; leave all nonmatch obs.
+BOMojo_IMDB <- merge(BOMojo_data_clean, IMDB_basic_subset, by = c("Title", "Year"), all = TRUE)
+
+#Extract the nonmatch observations from BOMojo (most likely due to slight diff. in titles)
+BOMojo_IMDB_small <- merge(BOMojo_data_clean, IMDB_basic_subset, by = c("Title"), all.x = TRUE, all.y = FALSE)
+
+year_check <- BOMojo_IMDB_small %>%
+  filter(Year.x > Year.y)
+#Issue: some of these are due to different movies having the same names, but most are due to release date mismatches. 
+#If different movies are improperly joined together because of their same names, there should be duplicate observations (multiple observations with the same title) because there are multiple distinct IMDB ID.
+#I mannually went through and cross-referenced the BOMojo and IMDb pages of the duplicate observations, and identify which IMDB title is correct 
+
+#filter out duplicates to leave the unique movies with different date listings
+drop <- c("youth", "wonder woman", "walk with me", "unfinished business", "the wall", "the void", "the drop", "lucy", "lion", "jackpot", "inferno", "happy ending", "blind", "anna", "addicted", "tomorrow", "the wave", "the president", "the other side", "the lure", "the little prince", "the journey", "the invitation", "the immigrant", "the connection", "split", "solace", "serena", "noble", "mr. right", "gold", "friend request", "fatima", "equals", "eden", "chronic", "cake", "black and white", "before we go", "a perfect day")
+year_check <- year_check %>%
+  filter(!(Title %in% drop))
+
+```
+
+###OMDB API
+```{r omdb, include = FALSE}
+#install the requisite packages for working with API
+library(httr)
+library(jsonlite)
+library(xml2)
+library(omdbapi)
+
+#Create a string of IMBD IDs corresponding to the films in the Box Office Mojo dataset
+IMDB_ID <- c("tt0470752", "tt2015381", "tt1065073", "tt1843866")
+
+#TEST
+#Call to API for data on movie with IMDB ID 
+OMDB_tt1843866 <- GET("http://www.omdbapi.com/?apikey=67ed49f9", query = list(i = "tt1843866", r = "json"))
+
+json_text_content <- content(OMDB_tt1843866, as = "text") %>%
+  fromJSON()
+omdb_tt1843866 <- as.data.frame(json_text_content)
+```
+#####Note
+Figure out how to systematically loop this process so you dont have to manually call every single movie in the box office mojo dataset
+

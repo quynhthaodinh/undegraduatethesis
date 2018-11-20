@@ -1,0 +1,265 @@
+---
+title: "Clustering Titles"
+author: "Thao Dinh"
+date: "11/13/2018"
+output: html_document
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(naniar)
+library(lubridate)
+```
+
+###Create dataframe containing BOMojo Titles, IMDB Titles, and IMDB ID in prep for clustering
+####Step 1: Clean IMDB Data
+```{r cleanIMDB, include=FALSE}
+#From the dataframe BOMojo_IMDB_small (where we have previously joined BOMojo and IMDB data by title only, allowing films with same title but distinct IMDB_ID to be duplicatedly joined to the same BOMojo title and occupy different observation rows), figure out which titles have duplicates
+IMDB_frequency <- as.data.frame((table(BOMojo_IMDB_small$Title)))
+IMDB_duplicates <- filter(IMDB_frequency, Freq > 1)
+
+#Pull out the string of titles that have duplicate names
+duplicate_titles <- IMDB_duplicates$Var1
+
+#Filter out the duplicate titles from the main IMDB dataset
+IMDB_without_D <- filter(IMDB_basic_subset, !(Title %in% duplicate_titles))
+
+#I mannually cross-referened the BOMojo page for these "duplicate titles" with their various IMDB entries (using the unique IMDB_ID for each IMDB title) and isolate the IMDB_ID that correctly correspond with the BOMojo entries. 
+
+#Pull out only the unique observations with the correct corresponding IMDB_ID to the BOMojo data entries with the same name
+duplicate_title_id <- c("tt2205401", 
+                        "tt5294966",
+                        "tt1715336",
+                        "tt3577624",
+                        "tt0443465",
+                        "tt1126590",
+                        "tt2883434",
+                        "tt1935089",
+                        "tt2381111",
+                        "tt2503944",
+                        "tt3707106",
+                        "tt3442006",
+                        "tt2883512",
+                        "tt3850496",
+                        "tt2674454",
+                        "tt2614776",
+                        "tt2380307",
+                        "tt3076658",
+                        "tt5097070",
+                        "tt4645330",
+                        "tt4160708",
+                        "tt4056738",
+                        "tt3090634",
+                        "tt3289728",
+                        "tt1707380",
+                        "tt4382872",
+                        "tt3495026",
+                        "tt4466544",
+                        "tt3900206",
+                        "tt3352390",
+                        "tt4481414",
+                        "tt5635086",
+                        "tt1800302",
+                        "tt5061814",
+                        "tt3017412",
+                        "tt5478478",
+                        "tt3062096",
+                        "tt2096673",
+                        "tt1188982",
+                        "tt2017561",
+                        "tt2446980",
+                        "tt2372222",
+                        "tt3605418",
+                        "tt3569230",
+                        "tt4786282",
+                        "tt3741834",
+                        "tt4669986",
+                        "tt2872732",
+                        "tt2091935",
+                        "tt4698584",
+                        "tt3531824",
+                        "tt2626090",
+                        "tt1247690",
+                        "tt1850457",
+                        "tt2072233",
+                        "tt2334871",
+                        "tt1247690",
+                        "tt4972582",
+                        "tt1895587",
+                        "tt4191054",
+                        "tt3119416",
+                        "tt3881784",
+                        "tt3824458",
+                        "tt3230082",
+                        "tt2935564",
+                        "tt1878841",
+                        "tt1600196",
+                        "tt3387542",
+                        "tt2039393",
+                        "tt2034800",
+                        "tt2515034",
+                        "tt4481514",
+                        "tt1951181",
+                        "tt4370784",
+                        "tt2400463",
+                        "tt4826674",
+                        "tt1872194",
+                        "tt4738360",
+                        "tt3958072",
+                        "tt1754656",
+                        "tt5278832",
+                        "tt5348236",
+                        "tt3530002",
+                        "tt4610244",
+                        "tt3702652",
+                        "tt3966942",
+                        "tt4995790",
+                        "tt1745787",
+                        "tt4255304",
+                        "tt3488710",
+                        "tt4218696",
+                        "tt3616916",
+                        "tt4379728",
+                        "tt4449576",
+                        "tt1964418",
+                        "tt1921149",
+                        "tt2273657",
+                        "tt3859076",
+                        "tt5910280",
+                        "tt2358925",
+                        "tt2597892",
+                        "tt2331100",
+                        "tt1389139",
+                        "tt1403241",
+                        "tt0451279",
+                        "tt3312830",
+                        "tt6654316",
+                        "tt1291570")
+
+IMDB_duplicates_unique <- filter(IMDB_basic_subset, IMDB_ID %in% duplicate_title_id) 
+
+#There was a number of films released in 2014 that IMDB reported as being released in 2013 (due to it being released on the festival circuit beforehand), and thus didn't have a match in the IMDB_basic_subset (which only contains movies from 2014-2017). I only found 3 observation of this type in the list of duplicate titles that I have isolated. 
+#Create a dataframe for these 3 observations
+IMDB_ID <- c("tt2017561","tt3119416", "tt1951181")
+Title <- c("journey to the west", "stray dogs", "the immigrant")
+Year <- c(2014, 2014, 2014)
+genres <- c("Action", "Drama", "Drama")
+IMDB_duplicates_extra <- data.frame(IMDB_ID, Title, Year, genres) 
+
+#Add the now clean IMDB "duplicate titles" dataframe to the larger IMDB_subset dataset
+IMDB_subset_clean <- rbind(IMDB_without_D, IMDB_duplicates_unique, IMDB_duplicates_extra)
+
+# Add a source column
+IMDB_title_clean <- IMDB_subset_clean %>%
+  mutate(Source = "IMDB") %>%
+  select(-1, -4)
+```
+
+####Step 2: Clean and select on Title, Year, Source
+```{r cleanBOMojo, include=FALSE}
+BOMojo_title_clean <- BOMojo_data_clean %>%
+  #Select only Title and Year columns
+  select("Title", "Year") %>%
+  #Add source columns
+  mutate(Source = "BOMojo")
+```
+
+####Step 3: Prep dataset containing IMDB and BOMojo titles for clustering
+```{r clustering_data_IMDB_BOMojo, include=FALSE}
+#join IMDB_title_clean and BOMojo_title_clean together, keeping all observations that didn't join
+BOMojo_IMDB_title <- merge(IMDB_title_clean, BOMojo_title_clean, by = c("Title"), all = TRUE)
+
+#Filter out all of the observations that did match, leaving only observation with no match
+BOMojo_IMDB_title_subset <- BOMojo_IMDB_title %>%
+  filter(is.na(Source.x) | is.na(Source.y)) %>%
+  #gather the Source.x/Source.y columns into Source
+  gather(key = Dataset, value = Source, Source.x, Source.y) %>%
+  #gather the Year.x/Year.y columns into Year
+  gather(key = DS, value = Year, Year.x, Year.y) %>%
+  #drop the NA introduced due to using the gather() function
+  drop_na() %>%
+  #select Title, Year, Source columns only
+  select(Title, Year, Source) %>%
+  #arange data to have IMDB data up top and BOMojo at the bottom
+  arrange(desc(Source)) %>%
+  #duplicate title column
+  mutate(Title2 = Title)
+
+#Export BOMojo_IMDB_title dataset
+write.csv(BOMojo_IMDB_title_subset, file = "Clustering slightly different BOMojo and IMDB Titles.csv", quote = TRUE, row.names = FALSE)
+```
+
+####Step 4: Seperate BOMojo_IMDB_title_subset out by year
+```{r byyear, include=FALSE}
+has_been_merged <- BOMojo_IMDB_title_subset_111618 %>%
+  filter(Source == "BOMojo") %>%
+  filter(Title != Title2)
+
+merged_title <- has_been_merged$Title2
+
+BOMojo_IMDB_title_subset_111618_new <- BOMojo_IMDB_title_subset_111618 %>%
+  filter(!(Title2 %in% merged_title))
+
+BOMojo_IMDB_title_unmerged_2014 <- filter(BOMojo_IMDB_title_subset_111618_new, Year == 2014) 
+
+#Export BOMojo_IMDB_title_unmerged_2014 dataset for clustering purpose
+write.csv(BOMojo_IMDB_title_unmerged_2014, file = "Clustering BOMojo and IMDB Titles 2014.csv", quote = TRUE, row.names = FALSE)
+
+#filter and export a dataset containing unmeerged 2015 titles for Clustering purpose
+BOMojo_IMDB_title_unmerged_2015 <- filter(BOMojo_IMDB_title_subset_111618_new, Year == 2015)
+write.csv(BOMojo_IMDB_title_unmerged_2015, file = "Clustering BOMojo and IMDB Titles 2015.csv", quote = TRUE, row.names = FALSE)
+
+#filter and export a dataset containing unmeerged 2016 titles for Clustering purpose
+BOMojo_IMDB_title_unmerged_2016 <- filter(BOMojo_IMDB_title_subset_111618_new, Year == 2016)
+write.csv(BOMojo_IMDB_title_unmerged_2016, file = "Clustering BOMojo and IMDB Titles 2016.csv", quote = TRUE, row.names = FALSE)
+
+#filter and export a dataset containing unmeerged 2017 titles for Clustering purpose
+BOMojo_IMDB_title_unmerged_2017 <- filter(BOMojo_IMDB_title_subset_111618_new, Year == 2017)
+write.csv(BOMojo_IMDB_title_unmerged_2017, file = "Clustering BOMojo and IMDB Titles 2017.csv", quote = TRUE, row.names = FALSE)
+```
+
+####Step 5: reimport and replace BOMojo titles with IMDB titles after the clustering process
+```{r afterclustering, include=FALSE}
+#Import dataset of 2015 BOMojo and IMDB titles that has been clustered
+BOMojo_IMDB_clustered_2015 <- read_csv("Clustering-BOMojo-and-IMDB-Titles-2015-csv.csv")
+
+BOMojo_IMDB_clustered_2015 <- BOMojo_IMDB_clustered_2015 %>%
+  filter(Source == "BOMojo")
+
+#Import dataset of 2016 BOMojo and IMDB titles that has been clustered
+BOMojo_IMDB_clustered_2016 <- read_csv("Clustering-BOMojo-and-IMDB-Titles-2016-csv.csv")
+
+BOMojo_IMDB_clustered_2016 <- BOMojo_IMDB_clustered_2016 %>%
+  filter(Source == "BOMojo")
+
+#Import dataset of 2017 BOMojo and IMDB titles that has been clustered
+BOMojo_IMDB_clustered_2017 <- read_csv("Clustering-BOMojo-and-IMDB-Titles-2017-csv.csv")
+
+BOMojo_IMDB_clustered_2017 <- BOMojo_IMDB_clustered_2017 %>%
+  filter(Source == "BOMojo")
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
