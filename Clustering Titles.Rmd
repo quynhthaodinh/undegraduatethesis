@@ -264,21 +264,68 @@ Frequency2 <- filter(Frequency2, Freq > 1)
 #Filter out the rest
 wrong_dupl <- c("tt4226970", "tt5884960", "tt5121236", "tt6954894", "tt2943946", "tt7913816", "tt5089556", "tt5112932", "tt3985956", "tt4594050", "tt3532296", "tt3614128", "tt8212482", "tt2570574", "tt3660078", "tt3308106", "tt7232438", "tt4192918", "tt4979652")
 BOMojo_IMDB_edited <- filter(BOMojo_IMDB_edited, !(IMDB_ID %in% wrong_dupl))
+BOMojo_IMDB_edited <- select(BOMojo_IMDB_edited, -4)
 
 #For the remaining unmatched observations, match with the list I have created of film titles where the BOMojo and IMDB year doesn't match
 BOMojo_IMDB_edited1 <- BOMojo_IMDB_edited %>%
   filter(is.na(IMDB_ID)) %>%
-  select(-5, -6)
-BOMojo_IMDB_edited1 <- merge(BOMojo_IMDB_edited1, Fill_in_IMDB_data, by.x = c("Title2", "Year"), by.y = c("Title", "BOMojo year"), all = TRUE)
+  select(-4, -5)
+BOMojo_IMDB_edited1 <- merge(BOMojo_IMDB_edited1, Fill_in_IMDB_data, by.x = c("Title2", "Year"), by.y = c("Title", "BOMojo year"), all.x = TRUE, all.y = FALSE)
 
 #Identify the remaining unmatched observations and match with the larger IMDB frame without constraining it by year
 BOMojo_IMDB_edited2 <- BOMojo_IMDB_edited1 %>%
   filter(is.na(IMDB_ID)) %>%
-  select(-5, -6)
+  select(-4, -5)
 
 BOMojo_IMDB_edited2 <- merge(BOMojo_IMDB_edited2, IMDB_subset_clean, by.x = c("Title2"), by.y = c("Title"), all.x = TRUE, all.y = FALSE)
-BOMojo_IMDB_edited3 <- BOMojo_IMDB_edited2 %>%
-  filter(!(is.na(IMDB_ID))) %>%
-  select(-6)
+BOMojo_IMDB_edited2 <- BOMojo_IMDB_edited2%>%
+  select(-5) %>%
+  #rename Year.x to Year
+  rename("Year" = Year.x)
+
+
+#Issue: some titles don't join no matter what I do, even when the title is exact
+#For the remaining unmatched observations that STILL doesn't join, handcompute.
+BOMojo_IMDB_edited3 <- read_csv("Manual BOMojo-IMDB Join.csv")
+
+#Join BOMojo_IMDB_edited, BOMojo_IMDB_edited1, BOMojo_IMDB_edited2 and BOMojo_IMDB_edited3, then drop NA (most NA in BOMojo_IMDB_edited should have been filled in by 1, 2 and 3)
+#Check: number of observations under BOMojo_IMDB_edited = # observations under new dataframe
+#Note: there will be slight differences because I have removed the reissued titles when manually computing BOMojo_IMDB_edited3
+BOMojo_IMDB_edited_final <- rbind(BOMojo_IMDB_edited, BOMojo_IMDB_edited1, BOMojo_IMDB_edited2, BOMojo_IMDB_edited3)
+
+BOMojo_IMDB_edited_final <- drop_na(BOMojo_IMDB_edited_final)
+
+#
+has_been_merged_wIMDB_ID <- merge(has_been_merged, IMDB_subset_clean, by.x = c("Title2", "Year"), by.y = c("Title", "Year"), all = FALSE)
+has_been_merged_wIMDB_ID <- select(has_been_merged_wIMDB_ID, -4)
+
+BOMojo_title_clean1 <- BOMojo_title_clean %>%
+  select(-3) %>%
+  mutate(Title2 = Title) 
+BOMojo_IMDB_join <- merge(BOMojo_title_clean1, IMDB_subset_clean, by = c("Title", "Year"), all.x = TRUE, all.y = FALSE)
+BOMojo_IMDB_cleanjoin <- BOMojo_IMDB_join %>%
+  drop_na()
+
+BOMojo_IMDB_final <- rbind(BOMojo_IMDB_edited_final, has_been_merged_wIMDB_ID, BOMojo_IMDB_cleanjoin)
+
+#Issue: the number of obervations in BOMojo_IMDB_final and BOMojo_IMDB_cleanjoin differs, suggesting that there are still observations in BOMojo observations that didn't have IMDB title attached. 
+#Identify and seperate them out into seperate dataframe
+BOMojo_IMDB_final_OGtitle <- BOMojo_IMDB_final$Title
+BOMojo_IMDB_unmatched <- BOMojo_IMDB_join %>%
+  filter(is.na(IMDB_ID)) %>%
+  filter(!(Title %in% BOMojo_IMDB_final_OGtitle))
+
+#Solution 1: not constraint merge by Year
+BOMojo_IMDB_unmatched_sol1 <- merge(BOMojo_IMDB_unmatched, IMDB_subset_clean, by = c("Title"), all.x = TRUE, all.y = FALSE)
+BOMojo_IMDB_cleanjoin1 <- BOMojo_IMDB_unmatched_sol1 %>%
+  filter(!is.na(IMDB_ID.y)) %>%
+  select(-4, -5, -7) %>%
+  rename("Year" = Year.x, "IMDB_ID" = IMDB_ID.y, "genres" = genres.y)
+
+#Rejoin BOMojo_IMDB_cleanjoin1 to BOMojo_IMDB_final
+BOMojo_IMDB_final1 <- rbind(BOMojo_IMDB_final, BOMojo_IMDB_cleanjoin1)  
+#Note: there will be slight differences between #observations in  BOMojo_IMDB_final1 and BOMojo_data_clean because I have removed the reissued titles
+BOMojo_IMDB_final1 <- rename(BOMojo_IMDB_final1, "IMDB_Title" = Title2)
 ```
+
 

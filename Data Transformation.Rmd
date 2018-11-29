@@ -36,8 +36,8 @@ IMDB_basic_subset <- IMDB_basic %>%
 IMDB_basic_subset$genres <- sapply(strsplit(IMDB_basic_subset$genres, ","), "[", 1)
 ```
 
-###Box Office Mojo + Kraggle Data
-####Clean Box Office Mojo Data
+##Box Office Mojo + Kraggle Data
+###Clean Box Office Mojo Data
 ```{r cleaning_BOMojo, include=FALSE}
 #Import Webscraped Box Office Mojo CSV
 movies <- read.csv('Box Office Mojo CSV.csv',
@@ -425,8 +425,9 @@ IMDB_basic_subset <- IMDB_basic_subset %>%
   rename("IMDB_ID" = tconst, "Title" = primaryTitle, "Year" = startYear) %>%
   select(-2)
 
+##Attempt 1: before clustering
 #Match the observations from IMDB onto those in the BOMojo dataframe; leave all nonmatch obs.
-BOMojo_IMDB <- merge(BOMojo_data_clean, IMDB_basic_subset, by = c("Title", "Year"), all = TRUE)
+BOMojo_IMDB_1 <- merge(BOMojo_data_clean, IMDB_basic_subset, by = c("Title", "Year"), all = TRUE)
 
 #Extract the nonmatch observations from BOMojo (most likely due to slight diff. in titles)
 BOMojo_IMDB_small <- merge(BOMojo_data_clean, IMDB_basic_subset, by = c("Title"), all.x = TRUE, all.y = FALSE)
@@ -442,7 +443,19 @@ drop <- c("youth", "wonder woman", "walk with me", "unfinished business", "the w
 year_check <- year_check %>%
   filter(!(Title %in% drop))
 
+##Attempt 2 (after clustering): Merge BOMojo_IMDB_final1 with BOMojo_data_clean to attach IMDB_ID, genre as well as IMDB_Title to the main dataframe
+BOMojo_IMDB_2 <- merge(BOMojo_data_clean, BOMojo_IMDB_final1, by = c("Title", "Year"), all = FALSE)
+
+#Issue: 3 observations won't join even though they are in both r frames and has the same name; resort to manual fill-in
+BOMojo_IMDB_2_fill_in <- read_csv("Manual BOMojo_IMDB_2 entries.csv")
+BOMojo_IMDB_2_fill_in <- BOMojo_IMDB_2_fill_in %>%
+  filter(!(is.na(IMDB_ID)))
+
+#Add the manually filled-in observations back to BOMojo_IMDB_2
+#Check: BOMojo_IMDB_2 and BOMojo_IMDB_final1 should have the same number of observations (1578)
+BOMojo_IMDB_2 <- rbind(BOMojo_IMDB_2, BOMojo_IMDB_2_fill_in)
 ```
+
 
 ###OMDB API
 ```{r omdb, include = FALSE}
@@ -453,7 +466,7 @@ library(xml2)
 library(omdbapi)
 
 #Create a string of IMBD IDs corresponding to the films in the Box Office Mojo dataset
-IMDB_ID <- c("tt0470752", "tt2015381", "tt1065073", "tt1843866")
+IMDB_ID <- BOMojo_IMDB_2$IMDB_ID
 
 #TEST
 #Call to API for data on movie with IMDB ID 
