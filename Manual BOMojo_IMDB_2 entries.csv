@@ -1,7 +1,4 @@
-Title,Year,Studio,worldwide_box,domestic_box,overseas_box,International_Release,Award,IMDB_Title,IMDB_ID,genres
-rams (hrútar),2016,0,149000,149000,NA,1,0,rams,tt3296658,Drama
-don't call me son,2016,0,11700,11700,NA,1,0,don't call me son,tt5452964,Drama
-things to come,2016,0,388000,388000,NA,1,0,things to come,tt4120176,Drama
-,,,,,,,,,,
-,,,,,,,,,,
-,,,,,,,,,,
+Title,Year,Studio,worldwide_box,domestic_box,overseas_box,International_Release,IMDB_Title,IMDB_ID,genres
+rams (hrútar),2016,0,149000,149000,NA,1,rams,tt3296658,Drama
+don't call me son,2016,0,11700,11700,NA,1,don't call me son,tt5452964,Drama
+things to come,2016,0,388000,388000,NA,1,things to come,tt4120176,Drama

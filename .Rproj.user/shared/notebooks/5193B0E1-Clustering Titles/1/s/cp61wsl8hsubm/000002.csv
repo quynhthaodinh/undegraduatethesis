@@ -1,0 +1,67 @@
+"0","#Import dataset of 2014 BOMojo and IMDB titles that has been clustered and edited"
+"0","BOMojo_IMDB_clustered_2014 <- read_csv(""Clustering-BOMojo-and-IMDB-Titles-2014-csv.csv"")"
+"2","Parsed with column specification:
+cols(
+  Title = col_character(),
+  Year = col_integer(),
+  Source = col_character(),
+  Title2 = col_character()
+)
+"
+"0","BOMojo_IMDB_clustered_2014 <- BOMojo_IMDB_clustered_2014 %>%"
+"0","  filter(Source == ""BOMojo"")"
+"0","#Import dataset of 2015 BOMojo and IMDB titles that has been clustered"
+"0","BOMojo_IMDB_clustered_2015 <- read_csv(""Clustering-BOMojo-and-IMDB-Titles-2015-csv.csv"")"
+"2","Parsed with column specification:
+cols(
+  Title = col_character(),
+  Year = col_integer(),
+  Source = col_character(),
+  Title2 = col_character()
+)
+"
+"0","BOMojo_IMDB_clustered_2015 <- BOMojo_IMDB_clustered_2015 %>%"
+"0","  filter(Source == ""BOMojo"")"
+"0","#Import dataset of 2016 BOMojo and IMDB titles that has been clustered"
+"0","BOMojo_IMDB_clustered_2016 <- read_csv(""Clustering-BOMojo-and-IMDB-Titles-2016-csv.csv"")"
+"2","Parsed with column specification:
+cols(
+  Title = col_character(),
+  Year = col_integer(),
+  Source = col_character(),
+  Title2 = col_character()
+)
+"
+"0","BOMojo_IMDB_clustered_2016 <- BOMojo_IMDB_clustered_2016 %>%"
+"0","  filter(Source == ""BOMojo"")"
+"0","#Import dataset of 2017 BOMojo and IMDB titles that has been clustered"
+"0","BOMojo_IMDB_clustered_2017 <- read_csv(""Clustering-BOMojo-and-IMDB-Titles-2017-csv.csv"")"
+"2","Parsed with column specification:
+cols(
+  Title = col_character(),
+  Year = col_integer(),
+  Source = col_character(),
+  Title2 = col_character()
+)
+"
+"0","BOMojo_IMDB_clustered_2017 <- BOMojo_IMDB_clustered_2017 %>%"
+"0","  filter(Source == ""BOMojo"")"
+"0","#Bind the clean BOMojo titles for all 4 years together"
+"0","BOMojo_IMDB_edited <- rbind(BOMojo_IMDB_clustered_2014, BOMojo_IMDB_clustered_2015, BOMojo_IMDB_clustered_2016, BOMojo_IMDB_clustered_2017)"
+"0","#Reattach IMDB_ID and Genre to the BOMojo_IMDB_edited titles using the new IMDB_compliant names"
+"0","BOMojo_IMDB_edited <- merge(BOMojo_IMDB_edited, IMDB_subset_clean, by.x = c(""Title2"", ""Year""), by.y = c(""Title"", ""Year""), all.x = TRUE, all.y = FALSE)"
+"0","#Remove the unintended duplicates (resulting from 2 or more titles of the same name being released in the same year)"
+"0","Frequency2 <- as.data.frame((table(BOMojo_IMDB_edited$Title2)))"
+"0","Frequency2 <- filter(Frequency2, Freq > 1)"
+"0","#Use the list of titles from Frequency2 to identify the correct IMDB_ID"
+"0","#Filter out the rest"
+"0","wrong_dupl <- c(""tt4226970"", ""tt5884960"", ""tt5121236"", ""tt6954894"", ""tt2943946"", ""tt7913816"", ""tt5089556"", ""tt5112932"", ""tt3985956"", ""tt4594050"", ""tt3532296"", ""tt3614128"", ""tt8212482"", ""tt2570574"", ""tt3660078"", ""tt3308106"", ""tt7232438"", ""tt4192918"", ""tt4979652"")"
+"0","BOMojo_IMDB_edited <- filter(BOMojo_IMDB_edited, !(IMDB_ID %in% wrong_dupl))"
+"0","BOMojo_IMDB_edited <- select(BOMojo_IMDB_edited, -4)"
+"0","#For the remaining unmatched observations, match with the list I have created of film titles where the BOMojo and IMDB year doesn't match"
+"0","BOMojo_IMDB_edited1 <- BOMojo_IMDB_edited %>%"
+"0","  filter(is.na(IMDB_ID)) %>%"
+"0","  select(-4, -5)"
+"0","BOMojo_IMDB_edited1 <- merge(BOMojo_IMDB_edited1, Fill_in_IMDB_data, by.x = c(""Title2"", ""Year""), by.y = c(""Title"", ""BOMojo year""), all.x = TRUE, all.y = FALSE)"
+"2","Error in as.data.frame(y) : object 'Fill_in_IMDB_data' not found
+"

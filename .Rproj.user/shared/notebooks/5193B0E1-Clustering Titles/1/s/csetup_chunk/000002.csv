@@ -1,0 +1,32 @@
+"0","knitr::opts_chunk$set(echo = TRUE)"
+"0","library(readr)"
+"0","library(dplyr)"
+"2","
+Attaching package: ‘dplyr’
+
+"
+"2","The following objects are masked from ‘package:stats’:
+
+    filter, lag
+
+"
+"2","The following objects are masked from ‘package:base’:
+
+    intersect, setdiff, setequal, union
+
+"
+"0","library(tidyr)"
+"0","library(ggplot2)"
+"2","Need help? Try Stackoverflow: https://stackoverflow.com/tags/ggplot2.
+"
+"0","library(naniar)"
+"0","library(lubridate)"
+"2","
+Attaching package: ‘lubridate’
+
+"
+"2","The following object is masked from ‘package:base’:
+
+    date
+
+"

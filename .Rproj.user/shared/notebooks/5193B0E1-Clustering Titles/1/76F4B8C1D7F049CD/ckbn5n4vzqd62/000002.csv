@@ -1,0 +1,5 @@
+"0","BOMojo_title_clean <- BOMojo_data_clean %>%"
+"0","  #Select only Title and Year columns"
+"0","  select(""Title"", ""Year"") %>%"
+"0","  #Add source columns"
+"0","  mutate(Source = ""BOMojo"")"

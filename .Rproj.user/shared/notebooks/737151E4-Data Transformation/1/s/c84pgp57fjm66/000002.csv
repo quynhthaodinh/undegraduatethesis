@@ -1,0 +1,4 @@
+"0","#list the distribution arms of major Hollywood studios for their inhouse-produced films"
+"0","studio_distributors <- c(""BV"", ""Uni."", ""Sony"", ""WB"", ""WB (NL)"", ""Fox"", ""Par."")"
+"0","#Recode Studio column using ifelse"
+"0","BOMojo_data_clean$Studio <- ifelse(BOMojo_data_clean$Studio %in% studio_distributors, 1, 0)"

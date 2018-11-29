@@ -1,0 +1,2 @@
+"0","BOMojo_data_clean <- movies_clean %>%"
+"0","  mutate(International_Release = ifelse(is.na(overseas_box) | is.na(domestic_box), 1, 0))"

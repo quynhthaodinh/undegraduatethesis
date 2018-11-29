@@ -1,0 +1,28 @@
+"0","#Import file I was working on in OpenRefine (and in which I has merged some titles) before deciding to switch over to new method"
+"0","BOMojo_IMDB_title_subset_111618 <- read_csv(""Clustering-slightly-different-BOMojo-and-IMDB-Titles-111618-csv.csv"")"
+"2","Parsed with column specification:
+cols(
+  Title = col_character(),
+  Year = col_integer(),
+  Source = col_character(),
+  Title2 = col_character()
+)
+"
+"0","has_been_merged <- BOMojo_IMDB_title_subset_111618 %>%"
+"0","  filter(Source == ""BOMojo"") %>%"
+"0","  filter(Title != Title2)"
+"0","merged_title <- has_been_merged$Title2"
+"0","BOMojo_IMDB_title_subset_111618_new <- BOMojo_IMDB_title_subset_111618 %>%"
+"0","  filter(!(Title2 %in% merged_title))"
+"0","BOMojo_IMDB_title_unmerged_2014 <- filter(BOMojo_IMDB_title_subset_111618_new, Year == 2014) "
+"0","#Export BOMojo_IMDB_title_unmerged_2014 dataset for clustering purpose"
+"0","write.csv(BOMojo_IMDB_title_unmerged_2014, file = ""Clustering BOMojo and IMDB Titles 2014.csv"", quote = TRUE, row.names = FALSE)"
+"0","#filter and export a dataset containing unmeerged 2015 titles for Clustering purpose"
+"0","BOMojo_IMDB_title_unmerged_2015 <- filter(BOMojo_IMDB_title_subset_111618_new, Year == 2015)"
+"0","write.csv(BOMojo_IMDB_title_unmerged_2015, file = ""Clustering BOMojo and IMDB Titles 2015.csv"", quote = TRUE, row.names = FALSE)"
+"0","#filter and export a dataset containing unmeerged 2016 titles for Clustering purpose"
+"0","BOMojo_IMDB_title_unmerged_2016 <- filter(BOMojo_IMDB_title_subset_111618_new, Year == 2016)"
+"0","write.csv(BOMojo_IMDB_title_unmerged_2016, file = ""Clustering BOMojo and IMDB Titles 2016.csv"", quote = TRUE, row.names = FALSE)"
+"0","#filter and export a dataset containing unmeerged 2017 titles for Clustering purpose"
+"0","BOMojo_IMDB_title_unmerged_2017 <- filter(BOMojo_IMDB_title_subset_111618_new, Year == 2017)"
+"0","write.csv(BOMojo_IMDB_title_unmerged_2017, file = ""Clustering BOMojo and IMDB Titles 2017.csv"", quote = TRUE, row.names = FALSE)"
