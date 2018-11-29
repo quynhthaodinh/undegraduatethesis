@@ -1,0 +1,29 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1543475079856.000,
+    "dirty" : false,
+    "encoding" : "",
+    "folds" : "",
+    "hash" : "0",
+    "id" : "CDFF4063",
+    "lastKnownWriteTime" : 4207897388486632040,
+    "last_content_update" : 1543475079856,
+    "path" : null,
+    "project_path" : null,
+    "properties" : {
+        "cacheKey" : "592D4713",
+        "caption" : "BOMojo_IMDB_2",
+        "contentUrl" : "grid_resource/gridviewer.html?env=&obj=BOMojo_IMDB_2&cache_key=592D4713",
+        "displayedObservations" : "1578",
+        "environment" : "",
+        "object" : "BOMojo_IMDB_2",
+        "preview" : "0",
+        "totalObservations" : "1578",
+        "variables" : "10"
+    },
+    "relative_order" : 5,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_dataframe"
+}

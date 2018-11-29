@@ -5,16 +5,16 @@
     "dirty" : false,
     "encoding" : "UTF-8",
     "folds" : "",
-    "hash" : "0",
+    "hash" : "3437939465",
     "id" : "409EDAB3",
-    "lastKnownWriteTime" : 1543474530,
-    "last_content_update" : 1543474530071,
+    "lastKnownWriteTime" : 1543479240,
+    "last_content_update" : 1543479240780,
     "path" : "~/GitHub/undegraduatethesis/Data Transformation.Rmd",
     "project_path" : "Data Transformation.Rmd",
     "properties" : {
-        "cursorPosition" : "189,0",
+        "cursorPosition" : "395,73",
         "last_setup_crc32" : "D7F049CDbd00e0e0",
-        "scrollLine" : "178"
+        "scrollLine" : "369"
     },
     "relative_order" : 1,
     "source_on_save" : false,
